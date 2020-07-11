@@ -4,6 +4,7 @@ from head_pose_estimation import HeadPoseEstimation
 from gaze_estimation import GazeEstimation
 import cv2
 from argparse import ArgumentParser
+from input_feeder import InputFeeder
 
 def build_argparser():
     parser = ArgumentParser()
@@ -20,33 +21,38 @@ def build_argparser():
     return parser
 
 def run_inference(args):
-    # getting face
-    faceDetection = FaceDetection(model_name=args.face_detection_model)
-    faceDetection.load_model()
-    img = cv2.imread(args.input)
-    face, face_coords = faceDetection.predict(img)
-    cv2.imshow("Face", face)
-    cv2.waitKey(0)
 
-    # getting eyes
-    facialLandmarksDetection = FacialLandmarksDetection(args.facial_landmarks_detection_model)
-    facialLandmarksDetection.load_model()
-    left_eye, right_eye, left_eye_coords, right_eye_coords = facialLandmarksDetection.predict(face)
-    cv2.imshow("left eye", left_eye)
-    cv2.waitKey(0)
-    cv2.imshow("right eye", right_eye)
-    cv2.waitKey(0)
+    feed=InputFeeder(input_type='video', input_file=args.input)
+    feed.load_data()
+    for batch in feed.next_batch():
+        cv2.imshow("Output", cv2.resize(batch, (500, 500)))
+        key = cv2.waitKey(60)
 
-    # getting head pose angles
-    headPoseEstimation = HeadPoseEstimation(args.head_pose_estimation_model)
-    headPoseEstimation.load_model()
-    angles = headPoseEstimation.predict(face)
-    print("head pose angles: ", angles)
+        if (key == 27):
+            break
 
-    # get mouse points
-    gazeEstimation = GazeEstimation(args.gaze_estimation_model)
-    gazeEstimation.load_model()
-    gazeEstimation.predict(left_eye, right_eye, angles)
+        # getting face
+        faceDetection = FaceDetection(model_name=args.face_detection_model)
+        faceDetection.load_model()
+        face = faceDetection.predict(batch)
+
+        # getting eyes
+        facialLandmarksDetection = FacialLandmarksDetection(args.facial_landmarks_detection_model)
+        facialLandmarksDetection.load_model()
+        left_eye, right_eye = facialLandmarksDetection.predict(face)
+        
+        # getting head pose angles
+        headPoseEstimation = HeadPoseEstimation(args.head_pose_estimation_model)
+        headPoseEstimation.load_model()
+        head_pose = headPoseEstimation.predict(face)
+        print("head pose angles: ", head_pose)
+
+        # get mouse points
+        gazeEstimation = GazeEstimation(args.gaze_estimation_model)
+        gazeEstimation.load_model()
+        mouse_coords = gazeEstimation.predict(left_eye, right_eye, head_pose)
+        print("gaze  output: ", mouse_coords)
+    feed.close()   
 
 
 def main():

@@ -1,6 +1,7 @@
 from openvino.inference_engine import IENetwork, IECore
 import os
 import cv2
+import math
 
 class GazeEstimation:
     '''
@@ -23,10 +24,10 @@ class GazeEstimation:
         except Exception as e:
             raise ValueError("Could not Initialise the Gaze Estimation Model. Have you enterred the correct model path?")
 
-        self.input_name=next(iter(self.model.inputs))
-        self.input_shape=self.model.inputs[self.input_name].shape
-        self.output_name=next(iter(self.model.outputs))
-        self.output_shape=self.model.outputs[self.output_name].shape
+        self.input_name=[x for x in self.model.inputs.keys()]
+        self.input_shape=self.model.inputs[self.input_name[1]].shape
+        self.output_name=[x for x in self.model.outputs.keys()]
+        # self.output_shape=self.model.outputs[self.output_name[1]].shape
 
     def load_model(self):
         # Load the IENetwork into the plugin
@@ -36,22 +37,17 @@ class GazeEstimation:
             exit(1)
 
     def predict(self, left_eye, right_eye, head_pose):
-        print("input_name: ", self.input_name)
-        print("output_name: ", self.output_name)
         p_left_eye = self.preprocess_input(left_eye)
         p_right_eye = self.preprocess_input(right_eye)
-        inputs = {
-            "left_eye_image": p_left_eye,
-            "right_eye_image": p_right_eye,
-            "head_pose_angles": head_pose
-        }
+        inputs = {'head_pose_angles':head_pose, 'left_eye_image':p_left_eye, 'right_eye_image':p_right_eye}
         
         self.exec_network.start_async(request_id = 0, inputs=inputs)
         status = self.exec_network.requests[0].wait(-1)
         if status == 0:
-            outputs = self.exec_network.requests[0].outputs[self.output_name]
-            print("gze output: ", outputs)
-        return None
+            outputs = self.exec_network.requests[0].outputs[self.output_name[0]]
+            mouse_coords = self.preprocess_output(outputs, head_pose)
+
+        return mouse_coords
 
     def check_model(self):
         # check model for unsupported layers
@@ -73,17 +69,15 @@ class GazeEstimation:
 
         return p_image
 
-    def preprocess_output(self, outputs, height, width):
+    def preprocess_output(self, outputs, head_pose):
         # getting coordinates of the left and right eyes from the inference
-        margin = 20
         if len(outputs) > 0:
             result = outputs[0]
-            x1 = result[0][0][0] * width
-            y1 = result[1][0][0] * height
-            x2 = result[2][0][0] * width
-            y2 = result[3][0][0] * height
-            
-            left_eye_coords = [int(x1 - margin), int(y1 - margin), int(x1 + margin), int(y1 + margin)]
-            right_eye_coords = [int(x2 - margin), int(y2 - margin), int(x2 + margin), int(y2 + margin)]
-        
-        return left_eye_coords, right_eye_coords
+            roll = head_pose[2]
+            angle = roll * math.pi / 180
+            sin = math.sin(angle)
+            cos = math.cos(angle)
+            x = result[0] * cos + result[1] * sin
+            y = -result[0] * sin + result[1] * cos
+
+        return x, y

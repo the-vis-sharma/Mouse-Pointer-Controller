@@ -1,6 +1,8 @@
 from openvino.inference_engine import IENetwork, IECore
 import os
 import cv2
+import time
+import logging as logger
 
 class FaceDetection:
     '''
@@ -12,6 +14,7 @@ class FaceDetection:
         self.device = device
         self.threshold = threshold
         self.exec_network = None
+        self.total_infer_time = None
 
         # adding extensions
         if extensions and self.device == "CPU":
@@ -37,10 +40,12 @@ class FaceDetection:
 
     def predict(self, image):
         p_image = self.preprocess_input(image)
+        infer_start_time = time.time()
         self.exec_network.start_async(request_id = 0, inputs={self.input_name: p_image})
         status = self.exec_network.requests[0].wait(-1)
         if status == 0:
             outputs = self.exec_network.requests[0].outputs[self.output_name]
+            self.total_infer_time = time.time() - infer_start_time
             coords = self.preprocess_output(outputs, image.shape[0], image.shape[1])
             if len(coords) == 0:
                 return None, None
@@ -56,19 +61,21 @@ class FaceDetection:
         supported_layers = self.plugin.query_network(network=self.model, device_name=self.device)
         unsupported_layers = [layer for layer in keys if layer not in supported_layers]
         if len(unsupported_layers) != 0:
-            print("Found unsupported Layers: {}".format(unsupported_layers))
-            print("Check if you have any extention for these layers")
+            logger.error("Found unsupported Layers: {}".format(unsupported_layers))
+            logger.error("Check if you have any extention for these layers")
             return False
         else:
             return True
 
     def preprocess_input(self, image):
         # Pre-process the image as needed
-        p_image = cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
-        p_image = p_image.transpose(2, 0, 1)
-        p_image = p_image.reshape(1, *p_image.shape)
-
-        return p_image
+        try:
+            p_image = cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
+            p_image = p_image.transpose(2, 0, 1)
+            p_image = p_image.reshape(1, *p_image.shape)
+            return p_image
+        except Exception as e:
+            logger.error(str(e))
 
     def preprocess_output(self, outputs, height, width):
         # getting coordinates of the face from the inference

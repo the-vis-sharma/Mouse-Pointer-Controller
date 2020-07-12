@@ -5,6 +5,9 @@ from gaze_estimation import GazeEstimation
 import cv2
 from argparse import ArgumentParser
 from input_feeder import InputFeeder
+from mouse_controller import MouseController
+import time
+import logging as logger
 
 def build_argparser():
     parser = ArgumentParser()
@@ -22,9 +25,34 @@ def build_argparser():
 
 def run_inference(args):
 
-    feed=InputFeeder(input_type='video', input_file=args.input)
+    mouseController = MouseController("medium", "fast")
+    loading_start_time = time.time()
+    faceDetection = FaceDetection(model_name=args.face_detection_model)
+    faceDetection.load_model()
+    
+    facialLandmarksDetection = FacialLandmarksDetection(args.facial_landmarks_detection_model)
+    facialLandmarksDetection.load_model()
+
+    headPoseEstimation = HeadPoseEstimation(args.head_pose_estimation_model)
+    headPoseEstimation.load_model()
+
+    gazeEstimation = GazeEstimation(args.gaze_estimation_model)
+    gazeEstimation.load_model()
+    total_loading_time = time.time() - loading_start_time
+    logger.info("Total loading time for models: ", total_loading_time)
+
+    feed = None
+    if args.input.lower() == "cam":
+        feed = InputFeeder(input_type="cam")
+    else:
+        feed = InputFeeder(input_type='video', input_file=args.input)
+        
     feed.load_data()
-    for batch in feed.next_batch():
+    total_infer_time = 0
+    for flag, batch in feed.next_batch():
+        if not flag:
+            break
+
         cv2.imshow("Output", cv2.resize(batch, (500, 500)))
         key = cv2.waitKey(60)
 
@@ -32,27 +60,24 @@ def run_inference(args):
             break
 
         # getting face
-        faceDetection = FaceDetection(model_name=args.face_detection_model)
-        faceDetection.load_model()
         face = faceDetection.predict(batch)
-
+        total_infer_time += faceDetection.total_infer_time
+        
         # getting eyes
-        facialLandmarksDetection = FacialLandmarksDetection(args.facial_landmarks_detection_model)
-        facialLandmarksDetection.load_model()
         left_eye, right_eye = facialLandmarksDetection.predict(face)
+        total_infer_time += facialLandmarksDetection.total_infer_time
         
         # getting head pose angles
-        headPoseEstimation = HeadPoseEstimation(args.head_pose_estimation_model)
-        headPoseEstimation.load_model()
         head_pose = headPoseEstimation.predict(face)
-        print("head pose angles: ", head_pose)
-
+        total_infer_time += headPoseEstimation.total_infer_time
+        
         # get mouse points
-        gazeEstimation = GazeEstimation(args.gaze_estimation_model)
-        gazeEstimation.load_model()
         mouse_coords = gazeEstimation.predict(left_eye, right_eye, head_pose)
-        print("gaze  output: ", mouse_coords)
-    feed.close()   
+        total_infer_time += gazeEstimation.total_infer_time
+        
+        mouseController.move(mouse_coords[0], mouse_coords[1])
+    feed.close() 
+    logger.info("total inference time: {}".format(total_infer_time)) 
 
 
 def main():

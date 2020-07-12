@@ -2,6 +2,8 @@ from openvino.inference_engine import IENetwork, IECore
 import os
 import cv2
 import math
+import time
+import logging as logger
 
 class GazeEstimation:
     '''
@@ -13,6 +15,7 @@ class GazeEstimation:
         self.device = device
         self.threshold = threshold
         self.exec_network = None
+        self.total_infer_time = None
 
         # adding extensions
         if extensions and self.device == "CPU":
@@ -40,11 +43,12 @@ class GazeEstimation:
         p_left_eye = self.preprocess_input(left_eye)
         p_right_eye = self.preprocess_input(right_eye)
         inputs = {'head_pose_angles':head_pose, 'left_eye_image':p_left_eye, 'right_eye_image':p_right_eye}
-        
+        infer_start_time = time.time()
         self.exec_network.start_async(request_id = 0, inputs=inputs)
         status = self.exec_network.requests[0].wait(-1)
         if status == 0:
             outputs = self.exec_network.requests[0].outputs[self.output_name[0]]
+            self.total_infer_time = time.time() - infer_start_time
             mouse_coords = self.preprocess_output(outputs, head_pose)
 
         return mouse_coords
@@ -55,19 +59,21 @@ class GazeEstimation:
         supported_layers = self.plugin.query_network(network=self.model, device_name=self.device)
         unsupported_layers = [layer for layer in keys if layer not in supported_layers]
         if len(unsupported_layers) != 0:
-            print("Found unsupported Layers: {}".format(unsupported_layers))
-            print("Check if you have any extention for these layers")
+            logger.error("Found unsupported Layers: {}".format(unsupported_layers))
+            logger.error("Check if you have any extention for these layers")
             return False
         else:
             return True
 
     def preprocess_input(self, image):
         # Pre-process the image as needed
-        p_image = cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
-        p_image = p_image.transpose(2, 0, 1)
-        p_image = p_image.reshape(1, *p_image.shape)
-
-        return p_image
+        try:
+            p_image = cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
+            p_image = p_image.transpose(2, 0, 1)
+            p_image = p_image.reshape(1, *p_image.shape)
+            return p_image
+        except Exception as e:
+            logger.error(str(e))
 
     def preprocess_output(self, outputs, head_pose):
         # getting coordinates of the left and right eyes from the inference

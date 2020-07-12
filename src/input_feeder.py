@@ -36,14 +36,15 @@ class InputFeeder:
         '''
         while True:
             for _ in range(10):
-                _, frame=self.cap.read()
-            yield frame
+                flag, frame=self.cap.read()
+            yield flag, frame
 
 
     def close(self):
         '''
         Closes the VideoCapture.
         '''
+        cv2.destroyAllWindows()
         if not self.input_type=='image':
             self.cap.release()
 

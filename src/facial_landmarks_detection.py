@@ -53,7 +53,7 @@ class FacialLandmarksDetection:
                 left_eye = image[left_eye_coords[1]:left_eye_coords[3], left_eye_coords[0]:left_eye_coords[2]]
                 right_eye = image[right_eye_coords[1]:right_eye_coords[3], right_eye_coords[0]:right_eye_coords[2]]
 
-        return left_eye, right_eye
+        return left_eye, right_eye, left_eye_coords, right_eye_coords
 
     def check_model(self):
         # check model for unsupported layers

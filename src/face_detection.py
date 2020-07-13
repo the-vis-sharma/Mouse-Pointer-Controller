@@ -53,7 +53,7 @@ class FaceDetection:
                 coords = coords[0]
                 cropped_face = image[coords[1]:coords[3], coords[0]:coords[2]]
 
-        return cropped_face
+        return cropped_face, coords
 
     def check_model(self):
         # check model for unsupported layers

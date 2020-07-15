@@ -49,9 +49,9 @@ class GazeEstimation:
         if status == 0:
             outputs = self.exec_network.requests[0].outputs[self.output_name[0]]
             self.total_infer_time = time.time() - infer_start_time
-            mouse_coords = self.preprocess_output(outputs, head_pose)
+            x, y, result = self.preprocess_output(outputs, head_pose)
 
-        return mouse_coords
+        return [x, y], result
 
     def check_model(self):
         # check model for unsupported layers
@@ -86,4 +86,4 @@ class GazeEstimation:
             x = result[0] * cos + result[1] * sin
             y = -result[0] * sin + result[1] * cos
 
-        return x, y
+        return x, y, result

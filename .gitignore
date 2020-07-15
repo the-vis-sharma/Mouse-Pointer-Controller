@@ -1,4 +1,4 @@
 model
 myenv
 .Instructions.md.swp
-src\__pycache__\
+src/__pycache__/

@@ -24,12 +24,12 @@ To run demo of this project run the below command in cmd
     ```
 - run the project with required arguements
     ```
-    python app.py -f "path of face detection model xml file" -l "path of facial landmarks detection model xml file" -hp "path of head pose detection model xml file" -g "path of gaze estimation model xml file" -i "input file path or 'cam' for web camera"
+    python app.py -f "path of face detection model xml file" -l "path of facial landmarks detection model xml file" -hp "path of head pose detection model xml file" -g "path of gaze estimation model xml file" -i "input file path or 'cam' for web camera" -d "device like CPU | GPU | MYRAID | FPGA" -ce "cpu extension path" -v "model symbols like f, l, hp or g for visualization"
     ```    
 
     **Example**
     ```
-    python app.py -f ..\model\intel\face-detection-adas-binary-0001\FP32-INT1\face-detection-adas-binary-0001.xml -l ..\model\intel\landmarks-regression-retail-0009\FP16\landmarks-regression-retail-0009.xml -hp ..\model\intel\head-pose-estimation-adas-0001\FP16\head-pose-estimation-adas-0001.xml -g ..\model\intel\gaze-estimation-adas-0002\FP16\gaze-estimation-adas-0002.xml -i ..\bin\demo.mp4
+    python app.py -f ..\model\intel\face-detection-adas-binary-0001\FP32-INT1\face-detection-adas-binary-0001.xml -l ..\model\intel\landmarks-regression-retail-0009\FP16\landmarks-regression-retail-0009.xml -hp ..\model\intel\head-pose-estimation-adas-0001\FP16\head-pose-estimation-adas-0001.xml -g ..\model\intel\gaze-estimation-adas-0002\FP16\gaze-estimation-adas-0002.xml -i ..\bin\demo.mp4 -d CPU -v f l hp g
     ```
 
 ## Documentation
@@ -39,6 +39,9 @@ This project accepts following command line arguements:
 - `-hp` or `--head_pose_estimation_model` for path of xml file of head pose estimation model.
 - `-g` or `--gaze_estimation_model` for path of xml file of gaze estimation model.
 - `-i` or `--input` for path of video file or string “cam” for webcam feed.
+- `-d` or `--device` Type of device like CPU, GPU, MYRIAD or FPGA. Default is CPU.
+- `-ce` or `--cpu_extension` Path for CPU extension.
+- `-v` or `--visualizers` Enter one or more model symbol like f, l, hp and g.
 
 ## Benchmarks
 Model Precision | Model Loading Time | Inference Time

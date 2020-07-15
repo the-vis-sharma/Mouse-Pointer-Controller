@@ -54,21 +54,34 @@ def visualize_eyes(image, face, face_coords, left_eye_coords, right_eye_coords):
     image[face_coords[1]:face_coords[3], face_coords[0]:face_coords[2]] = face
     return image
 
-def visualize_head_pose(image, head_pose, face_coords):
+def visualize_head_pose(image, head_pose):
     # display head pose info
     color = (255, 0, 0)
     width = 4
     fontScale = 1.5
     pt = (10, 40)
-    pt1 = (face_coords[0], face_coords[1])
-    pt2 = (face_coords[2], face_coords[3])
     msg = "Head Pose Output: Yaw: {:.2f}, Pitch: {:.2f}, Roll: {:.2f}".format(head_pose[0], head_pose[1], head_pose[2])
     cv2.putText(image, msg, pt, cv2.FONT_HERSHEY_COMPLEX, fontScale, color, width)
-    cv2.rectangle(image, pt1, pt2, color, width)
+    return image
+
+def visualize_gaze(image, x, y):
+    # visualize gaze direction
+    x, y = x * 100, y * 100
+    y = -y
+    pt = (10, 120)
+    pt1 = (400, 100)
+    pt2 = (int(400 + x), int(100 + y))
+    width = 4
+    fontScale = 1.5
+    textColor = (0, 255, 0)
+    lineColor = (255, 0, 255)
+    msg = "Gaze Output:"
+    cv2.putText(image, msg, pt, cv2.FONT_HERSHEY_COMPLEX, fontScale, textColor, width)
+    cv2.arrowedLine(image, pt1, pt2, lineColor, width, tipLength = 0.5) # green
     return image
 
 def run_inference(args):
-    print("visualizers: ", args.visualizers)
+    logger.debug("visualizers: ", args.visualizers)
     device = args.device
     cpu_ext = args.cpu_extension
     mouseController = MouseController("medium", "fast")
@@ -115,12 +128,13 @@ def run_inference(args):
         head_pose = headPoseEstimation.predict(face)
         total_infer_time += headPoseEstimation.total_infer_time
         if "hp" in args.visualizers:
-            batch = visualize_head_pose(batch, head_pose, face_coords)
+            batch = visualize_head_pose(batch, head_pose)
         
         # get mouse points
-        mouse_coords = gazeEstimation.predict(left_eye, right_eye, head_pose)
+        mouse_coords, result = gazeEstimation.predict(left_eye, right_eye, head_pose)
         total_infer_time += gazeEstimation.total_infer_time
-        
+        if "g" in args.visualizers:
+            batch = visualize_gaze(batch, mouse_coords[0], mouse_coords[1]) 
         mouseController.move(mouse_coords[0], mouse_coords[1])
 
         cv2.imshow("Output", cv2.resize(batch, (500, 500)))

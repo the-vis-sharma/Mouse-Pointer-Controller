@@ -4,8 +4,9 @@ import cv2
 import math
 import time
 import logging as logger
+from model import Model
 
-class GazeEstimation:
+class GazeEstimation(Model):
     '''
     Class for the Gaze Estimation Model.
     '''
@@ -32,13 +33,6 @@ class GazeEstimation:
         self.output_name=[x for x in self.model.outputs.keys()]
         # self.output_shape=self.model.outputs[self.output_name[1]].shape
 
-    def load_model(self):
-        # Load the IENetwork into the plugin
-        if self.check_model():
-            self.exec_network = self.plugin.load_network(self.model, self.device)
-        else:
-            exit(1)
-
     def predict(self, left_eye, right_eye, head_pose):
         p_left_eye = self.preprocess_input(left_eye)
         p_right_eye = self.preprocess_input(right_eye)
@@ -52,28 +46,6 @@ class GazeEstimation:
             x, y, result = self.preprocess_output(outputs, head_pose)
 
         return [x, y], result
-
-    def check_model(self):
-        # check model for unsupported layers
-        keys = self.model.layers.keys()
-        supported_layers = self.plugin.query_network(network=self.model, device_name=self.device)
-        unsupported_layers = [layer for layer in keys if layer not in supported_layers]
-        if len(unsupported_layers) != 0:
-            logger.error("Found unsupported Layers: {}".format(unsupported_layers))
-            logger.error("Check if you have any extention for these layers")
-            return False
-        else:
-            return True
-
-    def preprocess_input(self, image):
-        # Pre-process the image as needed
-        try:
-            p_image = cv2.resize(image, (self.input_shape[3], self.input_shape[2]))
-            p_image = p_image.transpose(2, 0, 1)
-            p_image = p_image.reshape(1, *p_image.shape)
-            return p_image
-        except Exception as e:
-            logger.error(str(e))
 
     def preprocess_output(self, outputs, head_pose):
         # getting coordinates of the left and right eyes from the inference
